@@ -24,8 +24,87 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <p><strong>Availability:</strong> <span class="spots-left">${spotsLeft} spots left</span></p>
         `;
+
+        const participantsSection = document.createElement("div");
+        participantsSection.className = "participants-section";
+
+        const participantsHeading = document.createElement("h5");
+        participantsHeading.textContent = "Participants";
+        participantsSection.appendChild(participantsHeading);
+
+        const participantsList = document.createElement("ul");
+        participantsList.className = "participant-list";
+        if (details.participants.length === 0) {
+          const emptyItem = document.createElement("li");
+          emptyItem.className = "empty";
+          emptyItem.textContent = "No participants yet";
+          participantsList.appendChild(emptyItem);
+        } else {
+          details.participants.forEach((email) => {
+            const participantItem = document.createElement("li");
+
+            const participantEmail = document.createElement("span");
+            participantEmail.className = "participant-email";
+            participantEmail.textContent = email;
+            participantItem.appendChild(participantEmail);
+
+            const removeButton = document.createElement("button");
+            removeButton.className = "remove-participant";
+            removeButton.type = "button";
+            removeButton.setAttribute("aria-label", `Unregister ${email} from ${name}`);
+            removeButton.title = "Unregister participant";
+            removeButton.innerHTML = `
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="m19 6-1 14H6L5 6" />
+                <path d="M10 11v5M14 11v5" />
+              </svg>
+            `;
+            removeButton.addEventListener("click", async () => {
+              removeButton.disabled = true;
+              try {
+                const response = await fetch(
+                  `/activities/${encodeURIComponent(name)}/signup?email=${encodeURIComponent(email)}`,
+                  { method: "DELETE" }
+                );
+                const result = await response.json();
+
+                if (!response.ok) {
+                  throw new Error(result.detail || "Unable to unregister participant");
+                }
+
+                participantItem.remove();
+                const remainingParticipants = participantsList.querySelectorAll("li:not(.empty)");
+                if (remainingParticipants.length === 0) {
+                  const emptyItem = document.createElement("li");
+                  emptyItem.className = "empty";
+                  emptyItem.textContent = "No participants yet";
+                  participantsList.appendChild(emptyItem);
+                }
+
+                const spotsLeftElement = activityCard.querySelector(".spots-left");
+                const updatedSpots = Number.parseInt(spotsLeftElement.textContent, 10) + 1;
+                spotsLeftElement.textContent = `${updatedSpots} spots left`;
+                messageDiv.textContent = result.message;
+                messageDiv.className = "success";
+              } catch (error) {
+                messageDiv.textContent = error.message || "Failed to unregister participant";
+                messageDiv.className = "error";
+              }
+
+              messageDiv.classList.remove("hidden");
+              setTimeout(() => messageDiv.classList.add("hidden"), 5000);
+              removeButton.disabled = false;
+            });
+            participantItem.appendChild(removeButton);
+            participantsList.appendChild(participantItem);
+          });
+        }
+        participantsSection.appendChild(participantsList);
+        activityCard.appendChild(participantsSection);
 
         activitiesList.appendChild(activityCard);
 
